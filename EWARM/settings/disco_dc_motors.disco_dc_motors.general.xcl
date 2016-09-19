@@ -1,0 +1,15 @@
+"C:\IAR\arm\bin\armproc.dll" 
+
+"C:\IAR\arm\bin\armstlink2.dll" 
+
+"C:\stm_projects\disco_dc_motors\EWARM\disco_dc_motors\Exe\disco_dc_motors.out" 
+
+--plugin "C:\IAR\arm\bin\armbat.dll" 
+
+--device_macro "C:\IAR\arm\config\debugger\ST\STM32F4xx.dmac" 
+
+--flash_loader "C:\IAR\arm\config\flashloader\ST\FlashSTM32F4xxI.board" 
+
+
+
+
