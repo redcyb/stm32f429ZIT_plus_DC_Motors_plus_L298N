@@ -84,9 +84,35 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
-
-  /* USER CODE BEGIN 3 */
+    /* USER CODE END WHILE */
+    
+    /* USER CODE BEGIN 3 */
+    
+    /* STOP ALL */
+    
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
+    
+    HAL_Delay(1000);
+    
+    /* MOVE FORWARD */
+    
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
+    
+    HAL_Delay(500);
+    
+    /* STOP ALL */
+    
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
+    
+    HAL_Delay(1000);
+    
+    /* MOVE BACKWARD */
+    
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
+    
+    HAL_Delay(500);
 
   }
   /* USER CODE END 3 */
