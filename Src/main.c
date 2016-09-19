@@ -38,6 +38,7 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -48,9 +49,16 @@
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
+static void MX_USART3_UART_Init(void); 
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+
+void move_forward(void);
+void move_backward(void);
+void turn_right(void);
+void turn_left(void);
+void motors_stop(void);
 
 /* USER CODE END PFP */
 
@@ -75,45 +83,40 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART3_UART_Init();
 
   /* USER CODE BEGIN 2 */
 
+  uint8_t data = 0;
+  HAL_UART_Receive_IT(&huart3, &data, 1);
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-    
-    /* USER CODE BEGIN 3 */
-    
-    /* STOP ALL */
-    
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
-    
-    HAL_Delay(1000);
-    
-    /* MOVE FORWARD */
-    
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
-    
-    HAL_Delay(500);
-    
-    /* STOP ALL */
-    
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
-    
-    HAL_Delay(1000);
-    
-    /* MOVE BACKWARD */
-    
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
-    
-    HAL_Delay(500);
+  /* USER CODE END WHILE */
 
+  /* USER CODE BEGIN 3 */
+
+    HAL_Delay(300);
+
+    if(huart3.RxXferCount == 0) {
+      
+      //printf("Received Byte: %i\n", data);
+      
+      if (data == 49) move_forward();
+      else if (data == 50) move_backward();
+      else if (data == 51) turn_right();
+      else motors_stop();
+
+      data = 0;
+      
+    }
+    
+    HAL_UART_Receive_IT(&huart3, &data, 1);
+    
   }
   /* USER CODE END 3 */
 
@@ -159,6 +162,25 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
+/* USART3 init function */
+static void MX_USART3_UART_Init(void)
+{
+
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -172,6 +194,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -187,6 +210,40 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void move_forward(void) {
+  motors_stop();
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
+}
+
+void move_backward(void) {
+  motors_stop();
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
+}
+
+void motors_stop(void) {
+  HAL_GPIO_WritePin(GPIOG, 
+                    GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, 
+                    GPIO_PIN_RESET);
+}
+
+void turn_right(void) {
+  motors_stop();
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
+}
+
+void turn_left(void) {
+  motors_stop();
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
+}
 
 /* USER CODE END 4 */
 
