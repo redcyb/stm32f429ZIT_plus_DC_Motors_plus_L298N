@@ -38,6 +38,8 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim9;
+
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
@@ -49,15 +51,25 @@ UART_HandleTypeDef huart3;
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
-static void MX_USART3_UART_Init(void); 
+static void MX_USART3_UART_Init(void);
+static void MX_TIM9_Init(void);
+                    
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+                
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-void move_forward(void);
-void move_backward(void);
-void turn_right(void);
-void turn_left(void);
+int MT_HIGH_SPEED = 65535;
+int MT_MEDIUM_SPEED = 30000;
+int MT_LOW_SPEED = 17000;
+int MT_NO_SPEED = 0;
+
+void move_forward(int motorsSpeedLevel);
+void move_backward(int motorsSpeedLevel);
+void turn_right(int motorsSpeedLevel);
+void turn_left(int motorsSpeedLevel);
+
 void motors_stop(void);
 
 /* USER CODE END PFP */
@@ -70,7 +82,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -84,8 +95,13 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
+  MX_TIM9_Init();
 
   /* USER CODE BEGIN 2 */
+
+  HAL_TIM_Base_Start_IT(&htim9);
+  HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_2);
 
   uint8_t data = 0;
   HAL_UART_Receive_IT(&huart3, &data, 1);
@@ -94,23 +110,38 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  
   while (1)
   {
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
 
-    HAL_Delay(300);
+    //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_SET);
+    //HAL_Delay(300);
+    //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_Delay(200);
+    HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_5);
 
     if(huart3.RxXferCount == 0) {
       
+      //for (int t=0; t<4; t++) {
+      
+      //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_SET);
+      //HAL_Delay(100);
+      //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_RESET);
+      //HAL_Delay(100);
+     
+      //}
+      
       //printf("Received Byte: %i\n", data);
       
-      if (data == 49) move_forward();
-      else if (data == 50) move_backward();
-      else if (data == 51) turn_right();
+      if (data == 49) move_forward(MT_MEDIUM_SPEED);
+      else if (data == 50) move_backward(MT_MEDIUM_SPEED);
+      else if (data == 51) turn_right(MT_LOW_SPEED);
+      else if (data == 52) turn_left(MT_LOW_SPEED);
       else motors_stop();
-
+      
       data = 0;
       
     }
@@ -137,7 +168,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 96;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -145,11 +181,11 @@ void SystemClock_Config(void)
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -160,6 +196,40 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/* TIM9 init function */
+static void MX_TIM9_Init(void)
+{
+
+  TIM_OC_InitTypeDef sConfigOC;
+
+  htim9.Instance = TIM9;
+  htim9.Init.Prescaler = 0;
+  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim9.Init.Period = 65535;
+  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_PWM_Init(&htim9) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim9, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_TIM_PWM_ConfigChannel(&htim9, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  HAL_TIM_MspPostInit(&htim9);
+
 }
 
 /* USART3 init function */
@@ -194,55 +264,111 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
+  /*Configure GPIO pins : PF7 PF8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PG9 PG11 PG13 PG15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15;
+  /*Configure GPIO pins : PG5 PG9 PG11 PG13 
+                           PG15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
+                          |GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
+                          |GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
 
-void move_forward(void) {
+void move_forward(int motorsSpeedLevel) {
+
   motors_stop();
+  
   HAL_Delay(100);
+  
+  TIM9->CCR1=motorsSpeedLevel;
+  TIM9->CCR2=motorsSpeedLevel;
+
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
+  
 }
 
-void move_backward(void) {
+void move_backward(int motorsSpeedLevel) {
+
   motors_stop();
+
   HAL_Delay(100);
+
+  TIM9->CCR1=motorsSpeedLevel;
+  TIM9->CCR2=motorsSpeedLevel;
+
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
 }
 
 void motors_stop(void) {
+  
+  TIM9->CCR1=MT_NO_SPEED;
+  TIM9->CCR2=MT_NO_SPEED;
+
   HAL_GPIO_WritePin(GPIOG, 
                     GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, 
                     GPIO_PIN_RESET);
 }
 
-void turn_right(void) {
+void turn_right(int motorsSpeedLevel) {
+
   motors_stop();
+
   HAL_Delay(100);
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
+
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  TIM9->CCR1=MT_MEDIUM_SPEED;
+  TIM9->CCR2=MT_MEDIUM_SPEED;
+
+  HAL_Delay(100);
+  
+  TIM9->CCR1=motorsSpeedLevel;
+  TIM9->CCR2=motorsSpeedLevel;
+
 }
 
-void turn_left(void) {
+void turn_left(int motorsSpeedLevel) {
+
   motors_stop();
+
   HAL_Delay(100);
+
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
+
+  TIM9->CCR1=MT_MEDIUM_SPEED;
+  TIM9->CCR2=MT_MEDIUM_SPEED;
+
+  HAL_Delay(100);
+  
+  TIM9->CCR1=motorsSpeedLevel;
+  TIM9->CCR2=motorsSpeedLevel;
 }
 
 /* USER CODE END 4 */
