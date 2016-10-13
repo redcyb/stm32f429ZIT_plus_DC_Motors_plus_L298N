@@ -38,6 +38,8 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart3;
@@ -53,24 +55,29 @@ void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM9_Init(void);
-                    
+static void MX_I2C1_Init(void);
+
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                 
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
+uint8_t aTxBuffer[8];
+
 int MT_HIGH_SPEED = 65535;
-int MT_MEDIUM_SPEED = 30000;
-int MT_LOW_SPEED = 17000;
+int MT_MEDIUM_SPEED = 40000;
+int MT_LOW_SPEED = 20000;
 int MT_NO_SPEED = 0;
 
 void move_forward(int motorsSpeedLevel);
 void move_backward(int motorsSpeedLevel);
 void turn_right(int motorsSpeedLevel);
 void turn_left(int motorsSpeedLevel);
-
 void motors_stop(void);
+
+void I2C_WriteBuffer(I2C_HandleTypeDef hi2cx, uint8_t dev_addr, uint8_t size_buf);
+void I2C_ReadBuffer(I2C_HandleTypeDef hi2cx, uint8_t dev_addr, uint8_t size_buf);
 
 /* USER CODE END PFP */
 
@@ -96,6 +103,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_TIM9_Init();
+  MX_I2C1_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -116,7 +124,9 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-
+    
+    /*
+    
     //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_SET);
     //HAL_Delay(300);
     //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5, GPIO_PIN_RESET);
@@ -149,8 +159,29 @@ int main(void)
     HAL_UART_Receive_IT(&huart3, &data, 1);
     
   }
-  /* USER CODE END 3 */
+    
+    */
+    
+    aTxBuffer[0] = 0;
+    aTxBuffer[1] = 0;
+    aTxBuffer[2] = 0;
+    aTxBuffer[3] = 0;
+    aTxBuffer[4] = 0;
+    aTxBuffer[5] = 0;
+    aTxBuffer[6] = 0;
+    aTxBuffer[7] = 0;
 
+    I2C_WriteBuffer(hi2c1, (uint16_t) 0xD0, 1);
+    while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY)
+    {
+    }
+    I2C_ReadBuffer(hi2c1, (uint16_t) 0xD0, 7);
+    printf("Read: %s\n", aTxBuffer);
+    
+    HAL_Delay(500);
+    
+  /* USER CODE END 3 */
+  }
 }
 
 /** System Clock Configuration
@@ -196,6 +227,26 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/* I2C1 init function */
+static void MX_I2C1_Init(void)
+{
+
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
 }
 
 /* TIM9 init function */
@@ -276,8 +327,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PG5 PG9 PG11 PG13 
-                           PG15 */
+  /*Configure GPIO pins : PG5 PG9 PG11 PG13 PG15 */
   GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
                           |GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -297,7 +347,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void move_forward(int motorsSpeedLevel) {
+void move_backward(int motorsSpeedLevel) {
 
   motors_stop();
   
@@ -311,7 +361,7 @@ void move_forward(int motorsSpeedLevel) {
   
 }
 
-void move_backward(int motorsSpeedLevel) {
+void move_forward(int motorsSpeedLevel) {
 
   motors_stop();
 
@@ -369,6 +419,28 @@ void turn_left(int motorsSpeedLevel) {
   
   TIM9->CCR1=motorsSpeedLevel;
   TIM9->CCR2=motorsSpeedLevel;
+}
+
+void I2C_WriteBuffer(I2C_HandleTypeDef hi2cx, uint8_t dev_addr, uint8_t size_buf) 
+{
+  while (HAL_I2C_Master_Transmit(&hi2cx, (uint16_t) dev_addr, (uint8_t*) &aTxBuffer, (uint16_t) size_buf, (uint32_t) 1000) != HAL_OK) 
+  {
+    if (HAL_I2C_GetError(&hi2cx) != HAL_I2C_ERROR_AF) 
+    {
+      printf("\nBuffer error T\n");
+    }
+  }
+}
+
+void I2C_ReadBuffer(I2C_HandleTypeDef hi2cx, uint8_t dev_addr, uint8_t size_buf) 
+{
+  while (HAL_I2C_Master_Receive(&hi2cx, (uint16_t) dev_addr, (uint8_t*) &aTxBuffer, (uint16_t) size_buf, (uint32_t) 1000) != HAL_OK) 
+  {
+    if (HAL_I2C_GetError(&hi2cx) != HAL_I2C_ERROR_AF) 
+    {
+      printf("\nBuffer error R\n");
+    }
+  }
 }
 
 /* USER CODE END 4 */
