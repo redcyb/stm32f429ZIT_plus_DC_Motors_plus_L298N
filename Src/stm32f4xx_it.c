@@ -37,9 +37,17 @@
 
 /* USER CODE BEGIN 0 */
 
+__IO uint32_t time = 0;
+
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern I2C_HandleTypeDef hi2c3;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim9;
 extern UART_HandleTypeDef huart3;
 
 /******************************************************************************/
@@ -173,7 +181,7 @@ void SysTick_Handler(void)
   HAL_IncTick();
   HAL_SYSTICK_IRQHandler();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-
+  
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -183,6 +191,46 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
+
+/**
+* @brief This function handles EXTI line0 interrupt.
+*/
+void EXTI0_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI0_IRQn 0 */
+
+  /* USER CODE END EXTI0_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+  /* USER CODE BEGIN EXTI0_IRQn 1 */
+  
+  printf("IRQ Pin val: %d \n", HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
+  
+  if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1) {
+
+    //printf("StartTimerVal: %d \n", __HAL_TIM_GET_COUNTER(&htim10));
+    
+    //printf("\nIRQ START: %d \n", HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
+    //printf("StartTimerVal: %d \n\n", __HAL_TIM_GET_COUNTER(&htim1));
+    
+    __HAL_TIM_SET_COUNTER(&htim4, 0);
+    HAL_TIM_Base_Start_IT(&htim4);
+    
+  } else {
+
+    //HAL_TIM_Base_Stop_IT(&htim10);
+
+    HAL_TIM_Base_Stop_IT(&htim4);
+    //printf("IRQ END: %d \n", HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
+    
+    time = __HAL_TIM_GET_COUNTER(&htim4) / 13;
+    
+    printf("StopTimerVal: %d \n\n", time);
+
+  }
+
+  /* USER CODE END EXTI0_IRQn 1 */
+
+}
 
 /**
 * @brief This function handles EXTI line[9:5] interrupts.
@@ -204,6 +252,83 @@ void EXTI9_5_IRQHandler(void)
 }
 
 /**
+* @brief This function handles TIM1 break interrupt and TIM9 global interrupt.
+*/
+void TIM1_BRK_TIM9_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_BRK_TIM9_IRQn 0 */
+
+  /* USER CODE END TIM1_BRK_TIM9_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  HAL_TIM_IRQHandler(&htim9);
+  /* USER CODE BEGIN TIM1_BRK_TIM9_IRQn 1 */
+
+  /* USER CODE END TIM1_BRK_TIM9_IRQn 1 */
+}
+
+/**
+* @brief This function handles TIM1 update interrupt and TIM10 global interrupt.
+*/
+void TIM1_UP_TIM10_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 0 */
+
+  /* USER CODE END TIM1_UP_TIM10_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 1 */
+
+  time = __HAL_TIM_GET_COUNTER(&htim1) / 10;
+  printf("Tim1 UP: %d \n", time);
+  
+  /* USER CODE END TIM1_UP_TIM10_IRQn 1 */
+}
+
+/**
+* @brief This function handles TIM2 global interrupt.
+*/
+void TIM2_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM2_IRQn 0 */
+
+  /* USER CODE END TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim2);
+  /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
+* @brief This function handles TIM3 global interrupt.
+*/
+void TIM3_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM3_IRQn 0 */
+
+  /* USER CODE END TIM3_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim3);
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+
+  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
+
+  /* USER CODE END TIM3_IRQn 1 */
+}
+
+/**
+* @brief This function handles TIM4 global interrupt.
+*/
+void TIM4_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM4_IRQn 0 */
+
+  /* USER CODE END TIM4_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim4);
+  /* USER CODE BEGIN TIM4_IRQn 1 */
+
+  /* USER CODE END TIM4_IRQn 1 */
+}
+
+/**
 * @brief This function handles USART3 global interrupt.
 */
 void USART3_IRQHandler(void)
@@ -215,6 +340,20 @@ void USART3_IRQHandler(void)
   /* USER CODE BEGIN USART3_IRQn 1 */
 
   /* USER CODE END USART3_IRQn 1 */
+}
+
+/**
+* @brief This function handles I2C3 event interrupt.
+*/
+void I2C3_EV_IRQHandler(void)
+{
+  /* USER CODE BEGIN I2C3_EV_IRQn 0 */
+
+  /* USER CODE END I2C3_EV_IRQn 0 */
+  HAL_I2C_EV_IRQHandler(&hi2c3);
+  /* USER CODE BEGIN I2C3_EV_IRQn 1 */
+
+  /* USER CODE END I2C3_EV_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
