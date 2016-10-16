@@ -130,7 +130,7 @@ int main(void)
 
     HAL_Delay(100);
     
-    /* UltraSonic Sensor Start
+    /* UltraSonic Sensor Start */
     
     __HAL_TIM_SET_COUNTER(&htim3, 0);
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
