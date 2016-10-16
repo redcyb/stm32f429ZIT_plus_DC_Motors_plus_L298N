@@ -128,7 +128,7 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-    HAL_Delay(100);
+    HAL_Delay(50);
     
     /* UltraSonic Sensor Start */
     
@@ -138,30 +138,31 @@ int main(void)
 
     HAL_Delay(10);
     printf("StopTimerDist: %d \n\n", USEchoDistance);
-
+    
     /* UltraSonic Sensor End */
 
     if(huart3.RxXferCount == 0) {
       
-      /*
-      
-      if (data == 49) move_forward(MT_MEDIUM_SPEED);
-      else if (data == 50) move_backward(MT_MEDIUM_SPEED);
-      else if (data == 51) turn_right(MT_LOW_SPEED);
-      else if (data == 52) turn_left(MT_LOW_SPEED);
+      if (btData == 49 && USEchoDistance > 100) {
+        move_forward(MT_MEDIUM_SPEED);
+      }
+
+      else if (btData == 50) move_backward(MT_MEDIUM_SPEED);
+      else if (btData == 51) turn_right(MT_LOW_SPEED);
+      else if (btData == 52) turn_left(MT_LOW_SPEED);
       else motors_stop();
       
-      data = 0;
+      btData = 0;
       
-      */
-      
-      printf("%d", btData);
-      
+    }
+    
+    if (USEchoDistance <= 300) {
+      motors_stop();
     }
     
     HAL_UART_Receive_IT(&huart3, &btData, 1);
     
-    HAL_Delay(100);
+    HAL_Delay(150);
   }
   /* USER CODE END 3 */
 
