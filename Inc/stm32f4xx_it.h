@@ -45,8 +45,6 @@
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
-extern uint32_t USEchoDistance;
-   
 void NMI_Handler(void);
 void HardFault_Handler(void);
 void MemManage_Handler(void);
@@ -61,6 +59,7 @@ void EXTI9_5_IRQHandler(void);
 void TIM3_IRQHandler(void);
 void TIM4_IRQHandler(void);
 void USART3_IRQHandler(void);
+void I2C3_EV_IRQHandler(void);
 
 #ifdef __cplusplus
 }

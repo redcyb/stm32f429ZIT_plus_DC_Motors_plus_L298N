@@ -36,10 +36,23 @@
 /* USER CODE BEGIN Includes */
     
 #include "motors.h"
+#include "defines.h"
+
+#include "stm32f4xx.h"
+#include "stm32f4xx_hal.h"
+
+//#include <stdint.h>
+//#include <stdio.h>
+//#include <string.h>
+
+#include "I2Cdev.h"
+#include "MPU6050.h"
 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c3;
+
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim9;
@@ -61,6 +74,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_TIM9_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_I2C3_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                 
@@ -106,8 +120,12 @@ int main(void)
   MX_TIM9_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-
+  MX_I2C3_Init();
+  
   /* USER CODE BEGIN 2 */
+  
+  MPU6050_initialize();
+  I2Cdev_init(&hi2c3);
 
   HAL_TIM_Base_Start_IT(&htim9);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
@@ -143,7 +161,7 @@ int main(void)
 
     if(huart3.RxXferCount == 0) {
       
-      if (btData == 49 && USEchoDistance > 100) {
+      if (btData == 49) {
         move_forward(MT_MEDIUM_SPEED);
       }
 
@@ -161,8 +179,8 @@ int main(void)
     }
     
     HAL_UART_Receive_IT(&huart3, &btData, 1);
-    
-    HAL_Delay(150);
+
+    HAL_Delay(50);
   }
   /* USER CODE END 3 */
 
@@ -211,6 +229,26 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/* I2C3 init function */
+static void MX_I2C3_Init(void)
+{
+
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.ClockSpeed = 40000;
+  hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c3.Init.OwnAddress1 = 0x10;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0x11;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
 }
 
 /* TIM3 init function */
@@ -349,6 +387,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pins : PF7 PF8 */
   GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8;
