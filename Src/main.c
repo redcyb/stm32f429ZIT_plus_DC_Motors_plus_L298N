@@ -64,6 +64,12 @@ UART_HandleTypeDef huart3;
 
 uint32_t USEchoDistance;
 
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+
+int16_t c_ax, c_ay, c_az;
+int16_t c_gx, c_gy, c_gz;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -124,16 +130,28 @@ int main(void)
   
   /* USER CODE BEGIN 2 */
   
-  MPU6050_initialize();
-  I2Cdev_init(&hi2c3);
-
   HAL_TIM_Base_Start_IT(&htim9);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_2);
 
   uint8_t btData = 0;
   HAL_UART_Receive_IT(&huart3, &btData, 1);
+
   
+  int16_t ax, ay, az;
+  int16_t gx, gy, gz;
+
+  int16_t c_ax, c_ay, c_az;
+  int16_t c_gx, c_gy, c_gz;
+
+  MPU6050_initialize();
+  MPU6050_setFullScaleGyroRange(MPU6050_GYRO_FS_250);
+  MPU6050_setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
+
+  I2Cdev_hi2c = &hi2c3;
+
+  MPU6050_getMotion6(&c_ax, &c_ay, &c_az, &c_gx, &c_gy, &c_gz);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -141,6 +159,7 @@ int main(void)
   
   while (1)
   {
+    
     HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_5);
   /* USER CODE END WHILE */
 
@@ -155,9 +174,11 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim3);
 
     HAL_Delay(10);
-    printf("StopTimerDist: %d \n\n", USEchoDistance);
+    printf("\n\nDist:  \t%d \n", USEchoDistance);
     
     /* UltraSonic Sensor End */
+    
+    /* BlueTooth and motors part */
 
     if(huart3.RxXferCount == 0) {
       
@@ -180,7 +201,16 @@ int main(void)
     
     HAL_UART_Receive_IT(&huart3, &btData, 1);
 
+    /* BlueTooth and motors part end */
+    
+    
+    MPU6050_getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+    printf("Accel: \t%d    %d    %d\n", ax - c_ax, ay - c_ay, az - c_az);
+    printf("Gyro:  \t%d    %d    %d\n", gx - c_gx, gy - c_gy, gz - c_gz);
+    
     HAL_Delay(50);
+
   }
   /* USER CODE END 3 */
 
