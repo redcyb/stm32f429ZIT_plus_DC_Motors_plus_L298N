@@ -89,8 +89,8 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* Private function prototypes -----------------------------------------------*/
 
 int MT_HIGH_SPEED = 65535;
-int MT_MEDIUM_SPEED = 30000;
-int MT_LOW_SPEED = 17000;
+int MT_MEDIUM_SPEED = 35000;
+int MT_LOW_SPEED = 25000;
 int MT_NO_SPEED = 0;
 
 void move_forward(int motorsSpeedLevel);
@@ -174,7 +174,7 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim3);
 
     HAL_Delay(10);
-    printf("\n\nDist:  \t%d \n", USEchoDistance);
+    //printf("\n\nDist:  \t%d \n", USEchoDistance);
     
     /* UltraSonic Sensor End */
     
@@ -185,19 +185,23 @@ int main(void)
       if (btData == 49) {
         move_forward(MT_MEDIUM_SPEED);
       }
-
-      else if (btData == 50) move_backward(MT_MEDIUM_SPEED);
+      else if (btData == 50) move_backward(MT_HIGH_SPEED);
       else if (btData == 51) turn_right(MT_LOW_SPEED);
       else if (btData == 52) turn_left(MT_LOW_SPEED);
       else motors_stop();
+      
+      //printf("BT: \t%d\n", btData);
+
       
       btData = 0;
       
     }
     
+    /*
     if (USEchoDistance <= 300) {
       motors_stop();
     }
+    */
     
     HAL_UART_Receive_IT(&huart3, &btData, 1);
 
@@ -206,8 +210,8 @@ int main(void)
     
     MPU6050_getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    printf("Accel: \t%d    %d    %d\n", ax - c_ax, ay - c_ay, az - c_az);
-    printf("Gyro:  \t%d    %d    %d\n", gx - c_gx, gy - c_gy, gz - c_gz);
+    //printf("Accel: \t%d    %d    %d\n", ax - c_ax, ay - c_ay, az - c_az);
+    //printf("Gyro:  \t%d    %d    %d\n", gx - c_gx, gy - c_gy, gz - c_gz);
     
     HAL_Delay(50);
 
@@ -511,8 +515,8 @@ void turn_right(int motorsSpeedLevel) {
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_RESET);
 
-  TIM9->CCR1=MT_MEDIUM_SPEED;
-  TIM9->CCR2=MT_MEDIUM_SPEED;
+  TIM9->CCR1=MT_HIGH_SPEED;
+  TIM9->CCR2=MT_HIGH_SPEED;
 
   HAL_Delay(100);
   
@@ -530,8 +534,8 @@ void turn_left(int motorsSpeedLevel) {
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
 
-  TIM9->CCR1=MT_MEDIUM_SPEED;
-  TIM9->CCR2=MT_MEDIUM_SPEED;
+  TIM9->CCR1=MT_HIGH_SPEED;
+  TIM9->CCR2=MT_HIGH_SPEED;
 
   HAL_Delay(100);
   
