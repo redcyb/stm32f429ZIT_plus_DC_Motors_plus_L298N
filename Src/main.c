@@ -4,7 +4,7 @@
   * Description        : Main program body
   ******************************************************************************
   *
-  * COPYRIGHT(c) 2016 STMicroelectronics
+  * COPYRIGHT(c) 2017 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -53,6 +53,7 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c3;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim9;
@@ -81,6 +82,7 @@ static void MX_TIM9_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_I2C3_Init(void);
+static void MX_TIM2_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                 
@@ -93,12 +95,25 @@ int MT_MEDIUM_SPEED = 35000;
 int MT_LOW_SPEED = 25000;
 int MT_NO_SPEED = 0;
 
+uint16_t SERVO_0 = 3900;
+uint16_t SERVO_180 = 18000;
+
+uint16_t SERVO_center = 10950;
+uint16_t SERVO_right = 3900;
+uint16_t SERVO_left = 18000;
+uint16_t SERVO_current_pos;
+uint32_t SERVO_step;
+
 void move_forward(int motorsSpeedLevel);
 void move_backward(int motorsSpeedLevel);
 void turn_right(int motorsSpeedLevel);
 void turn_left(int motorsSpeedLevel);
-
 void motors_stop(void);
+
+void head_turn_right(uint16_t angle);
+void head_turn_left(uint16_t angle);
+void set_pos(uint16_t pos);
+
 
 /* USER CODE END PFP */
 
@@ -108,6 +123,10 @@ void motors_stop(void);
 
 int main(void)
 {
+
+  SERVO_current_pos = SERVO_center;
+  SERVO_step = (SERVO_left - SERVO_right) / 180;
+  printf("\n\n step:  \t%d \n", SERVO_step);
 
   /* USER CODE BEGIN 1 */
   /* USER CODE END 1 */
@@ -127,16 +146,19 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_I2C3_Init();
-  
+  MX_TIM2_Init();
+
   /* USER CODE BEGIN 2 */
   
   HAL_TIM_Base_Start_IT(&htim9);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_2);
+  
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
   uint8_t btData = 0;
   HAL_UART_Receive_IT(&huart3, &btData, 1);
-
   
   int16_t ax, ay, az;
   int16_t gx, gy, gz;
@@ -157,10 +179,34 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   
+  // Servo block start
+  
+  while(1) {
+    
+    SERVO_current_pos = SERVO_center;
+    TIM2->CCR1 = SERVO_center;
+    HAL_Delay(1000);
+    
+    for (int i=0; i<=18; i++) {
+      head_turn_right(5);
+      HAL_Delay(100);
+    }
+    for (int i=0; i<=36; i++) {
+      head_turn_left(5);
+      HAL_Delay(100);
+    }
+    for (int i=0; i<=18; i++) {
+      head_turn_right(5);
+      HAL_Delay(100);
+    }
+  
+  }
+  
+  // Servo block end
+  
   while (1)
   {
-    
-    HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_5);
+
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -272,16 +318,53 @@ static void MX_I2C3_Init(void)
   hi2c3.Instance = I2C3;
   hi2c3.Init.ClockSpeed = 40000;
   hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c3.Init.OwnAddress1 = 0x10;
+  hi2c3.Init.OwnAddress1 = 32;
   hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c3.Init.OwnAddress2 = 0x11;
+  hi2c3.Init.OwnAddress2 = 0;
   hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(&hi2c3) != HAL_OK)
   {
     Error_Handler();
   }
+
+}
+
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
+{
+
+  TIM_MasterConfigTypeDef sMasterConfig;
+  TIM_OC_InitTypeDef sConfigOC;
+
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 6;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
@@ -419,9 +502,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pins : PF7 PF8 */
   GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8;
@@ -442,9 +525,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PG5 PG9 PG11 PG13 
+  /*Configure GPIO pins : PG4 PG5 PG6 PG7 
+                           PG8 PG9 PG11 PG13 
                            PG15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7 
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
                           |GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -455,7 +540,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_5|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7 
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13 
                           |GPIO_PIN_15, GPIO_PIN_RESET);
 
   /* EXTI interrupt init*/
@@ -478,8 +564,8 @@ void move_forward(int motorsSpeedLevel) {
   TIM9->CCR1=motorsSpeedLevel;
   TIM9->CCR2=motorsSpeedLevel;
 
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
   
 }
 
@@ -487,13 +573,13 @@ void move_backward(int motorsSpeedLevel) {
 
   motors_stop();
 
-  HAL_Delay(100);
+  HAL_Delay(50);
 
   TIM9->CCR1=motorsSpeedLevel;
   TIM9->CCR2=motorsSpeedLevel;
 
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_13, GPIO_PIN_SET);
 }
 
 void motors_stop(void) {
@@ -510,7 +596,7 @@ void turn_right(int motorsSpeedLevel) {
 
   motors_stop();
 
-  HAL_Delay(100);
+  HAL_Delay(50);
 
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_RESET);
@@ -529,7 +615,7 @@ void turn_left(int motorsSpeedLevel) {
 
   motors_stop();
 
-  HAL_Delay(100);
+  HAL_Delay(50);
 
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_9|GPIO_PIN_13, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_11|GPIO_PIN_15, GPIO_PIN_SET);
@@ -541,6 +627,27 @@ void turn_left(int motorsSpeedLevel) {
   
   TIM9->CCR1=motorsSpeedLevel;
   TIM9->CCR2=motorsSpeedLevel;
+}
+
+void set_pos(uint16_t pos) {
+  printf("\nStep%d:   \t%d \n", pos, SERVO_0 + SERVO_step * pos);
+  TIM2->CCR1 = SERVO_0 + SERVO_step * pos;
+}
+
+void head_turn_right(uint16_t angle) {
+  uint16_t tmp = SERVO_current_pos - angle * SERVO_step;
+  if (tmp >= SERVO_right) {
+    SERVO_current_pos = tmp;
+    TIM2->CCR1 = SERVO_current_pos;
+  }
+}
+
+void head_turn_left(uint16_t angle) {
+  uint16_t tmp = SERVO_current_pos + angle * SERVO_step;
+  if (tmp <= SERVO_left) {
+    SERVO_current_pos = tmp;
+    TIM2->CCR1 = SERVO_current_pos;
+  }
 }
 
 /* USER CODE END 4 */
